@@ -70,3 +70,23 @@ body {
             line-height: 1;
             user-select: none;
         }
+
+        .message {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            transform: translateY(-50%);
+            color: white;
+            background-color: rgba(0, 0, 0, 0.8);
+            text-align: center;
+            font-size: 24px;
+            line-height: 1.6;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .message small {
+            font-size: 16px;
+        }
