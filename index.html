@@ -4,7 +4,100 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ping Pong</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 30px;
+            background-color: #e5e5e5;
+            display: flex;
+            justify-content: center;
+            font-family: sans-serif;
+        }
+        #board {
+            width: 500px;
+            height: 500px;
+            background-color: black;
+            border-top: 5px solid skyblue;
+            border-left: 5px solid skyblue;
+            border-right: 5px solid skyblue;
+            position: relative;
+            box-sizing: content-box;
+        }
+
+        .score {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 20px;
+            line-height: 1;
+            user-select: none;
+        }
+
+        .brick-container {
+            position: absolute;
+            top: 45px;
+            left: 15px;
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-auto-rows: 10px;
+            gap: 10px;
+        }
+
+        .brick {
+            width: 50px;
+            height: 10px;
+            background-color: skyblue;
+        }
+
+        .ball {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: red;
+            bottom: 15px;
+            left: 245px;
+        }
+
+        .paddle {
+            position: absolute;
+            width: 80px;
+            height: 10px;
+            background-color: lightgreen;
+            bottom: 5px;
+            left: 210px; /* (500 - 80) / 2 */
+        }
+
+        .lives {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: tomato;
+            font-size: 20px;
+            line-height: 1;
+            user-select: none;
+        }
+
+        .message {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            transform: translateY(-50%);
+            color: white;
+            background-color: rgba(0, 0, 0, 0.8);
+            text-align: center;
+            font-size: 24px;
+            line-height: 1.6;
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .message small {
+            font-size: 16px;
+        }
+    </style>
 </head>
 <body>
     <div id="board">
@@ -43,7 +136,6 @@
         <div class="paddle"></div>
         <div class="message" role="status" aria-live="polite"></div>
     </div>
-    <script src="logic.js"></script>
-    <script src="script.js"></script>
+    <script src="game.js"></script>
 </body>
 </html>
