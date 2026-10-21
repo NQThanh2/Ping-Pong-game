@@ -24,7 +24,7 @@ Game phá gạch viết bằng HTML, CSS và JavaScript. Game có 5 màn, mỗi 
 | Màn | Tên | Cơ chế riêng | Điều kiện qua màn |
 |:---:|---|---|---|
 | 1 | Khởi động | 32 gạch đứng yên, mỗi gạch 1 HP | Phá hết gạch |
-| 2 | Phá giáp | 32 gạch có 1–3 HP, màu và số trên gạch cho biết HP còn lại | Phá hết gạch |
+| 2 | Phá giáp | 32 gạch có 1–3 HP, kích thước 50 × 10 như màn 1, màu gạch cho biết HP còn lại | Phá hết gạch |
 | 3 | Mục tiêu di động | 32 gạch, các hàng chuyển động ngang, hai hàng liền nhau đi ngược hướng | Phá hết gạch |
 | 4 | Gạch hồi phục | 24 gạch 2 HP, tự hồi đầy HP nếu không bị đánh trong 4 giây | Phá hết gạch |
 | 5 | Lõi phòng thủ | Boss di chuyển có khiên, phá gạch để tắt khiên, sau đó boss bắn đạn | Hạ HP boss về 0 |

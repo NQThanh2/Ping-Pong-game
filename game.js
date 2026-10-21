@@ -1,16 +1,17 @@
 "use strict";
 
-// Logic Brick Breaker — MÀN 1
-// sân 500 × 500, gạch 50 × 10 (8 cột × 3 hàng), thanh đỡ 80 × 10, bóng 10 × 10
+// Logic Brick Breaker — MÀN 1 VÀ 2
+// sân 500 × 500, gạch rộng 50px (8 cột), thanh đỡ 80 × 10, bóng 10 × 10
 // Hệ tọa độ: (0, 0) là góc trên trái của sân, x tăng sang phải, y tăng xuống dưới
 class BrickBreakerGame {
   constructor() {
     this.width = 500;
     this.height = 500;
     this.step = 1 / 240; // bước vật lý cố định
-    // Mỗi phần tử là một màn. Hiện mới có màn 1; thêm màn mới bằng cách thêm vào mảng này
+    // Mỗi phần tử là một màn; màn 2 bổ sung gạch có 1–3 HP.
     this.levels = [
-      { name: "Khởi động", type: "normal", rows: 3, speed: 250 }
+      { name: "Khởi động", type: "normal", rows: 4, speed: 250 },
+      { name: "Phá giáp", type: "armored", rows: 4, speed: 250 }
     ];
     this.paddle = { x: 0, y: 485, width: 80, height: 10, speed: 350 }; // cách đáy 5px
     this.ball = { x: 0, y: 0, radius: 5, vx: 0, vy: 0 };
@@ -40,9 +41,14 @@ class BrickBreakerGame {
   }
 
   choiLai() {
+    this.chonMan(1);
+  }
+
+  chonMan(levelNumber) {
+    if (!Number.isInteger(levelNumber) || levelNumber < 1 || levelNumber > this.levels.length) return;
     this.score = 0;
     this.lives = 3;
-    this.taiMan(1);
+    this.taiMan(levelNumber);
   }
 
   taiMan(levelNumber) {
@@ -56,7 +62,7 @@ class BrickBreakerGame {
     this.datLaiBong();
   }
 
-  // 8 cột × 3 hàng, gạch 50 × 10, khoảng cách 10px, lề trái 15px, lề trên 45px
+  // Màn 1: 3 hàng gạch 1 HP. Màn 2: 4 hàng gạch 1–3 HP; cùng kích thước 50 × 10.
   taoGach() {
     const config = this.layManHienTai();
     const columns = 8, width = 50, height = 10, gap = 10;
@@ -64,11 +70,12 @@ class BrickBreakerGame {
     const result = [];
     for (let row = 0; row < config.rows; row++) {
       for (let column = 0; column < columns; column++) {
+        const hp = config.type === "armored" ? 1 + (row + column) % 3 : 1;
         result.push({
           id: row * columns + column, row, column,
           x: startX + column * (width + gap),
           y: startY + row * (height + gap),
-          width, height, hp: 1, maxHp: 1
+          width, height, hp, maxHp: hp
         });
       }
     }
@@ -216,7 +223,10 @@ class BrickBreakerGame {
 
   layTrangThai() {
     return {
-      status: this.status, level: this.level, levelName: this.layManHienTai().name,
+      status: this.status, 
+      level: this.level, 
+      levelName: this.layManHienTai().name,
+      levelType: this.layManHienTai().type,
       score: this.score, lives: this.lives, time: this.time,
       width: this.width, height: this.height,
       remainingBricks: this.demGachConLai(),
@@ -234,7 +244,11 @@ const livesEl = document.querySelector(".lives");
 const messageEl = document.querySelector(".message");
 const ballEl = document.querySelector(".ball");
 const paddleEl = document.querySelector(".paddle");
-const brickEls = Array.from(document.querySelectorAll(".brick")); // thứ tự = id gạch (hàng trước, cột sau)
+const brickContainerEl = document.querySelector(".brick-container");
+const levelSelectorEl = document.querySelector(".level-selector");
+let brickEls = [];
+let manDangHienThi = 0;
+let nutChonManEls = [];
 
 const keys = { left: false, right: false };
 
@@ -242,10 +256,44 @@ function dongBoHuong() {
   game.datHuong((keys.right ? 1 : 0) - (keys.left ? 1 : 0));
 }
 
+function taoNutChonMan() {
+  nutChonManEls = game.levels.map((level, index) => {
+    const levelNumber = index + 1;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "level-button";
+    button.dataset.level = levelNumber;
+    button.textContent = `Màn ${levelNumber}: ${level.name}`;
+    button.addEventListener("click", () => {
+      keys.left = keys.right = false;
+      game.chonMan(levelNumber);
+      lastTime = null;
+      hienThi();
+      button.blur();
+    });
+    return button;
+  });
+  levelSelectorEl.replaceChildren(...nutChonManEls);
+}
+
+function taoGiaoDienGach(bricks) {
+  brickContainerEl.replaceChildren();
+  brickEls = bricks.map(brick => {
+    const element = document.createElement("div");
+    element.className = "brick";
+    element.style.left = brick.x + "px";
+    element.style.top = brick.y + "px";
+    element.style.width = brick.width + "px";
+    element.style.height = brick.height + "px";
+    brickContainerEl.appendChild(element);
+    return element;
+  });
+}
+
 function layThongBao(state) {
   switch (state.status) {
     case "ready":
-      return `Màn ${state.level}: ${state.levelName}<br><small>Nhấn Space để thả bóng</small>`;
+      return `Màn ${state.level}: ${state.levelName}<br>${state.levelType === "armored" ? "<small>Gạch có 1–3 HP, mỗi lần trúng bóng giảm 1 HP</small><br>" : ""}<small>Nhấn Space để thả bóng</small>`;
     case "paused":
       return "Tạm dừng<br><small>Nhấn P để tiếp tục</small>";
     case "levelClear":
@@ -259,15 +307,24 @@ function layThongBao(state) {
 
 function hienThi() {
   const s = game.layTrangThai();
+  if (manDangHienThi !== s.level) {
+    taoGiaoDienGach(s.bricks);
+    manDangHienThi = s.level;
+  }
   scoreEl.textContent = s.score;
   livesEl.textContent = "♥ " + s.lives;
+  nutChonManEls.forEach(button => {
+    button.setAttribute("aria-pressed", String(Number(button.dataset.level) === s.level));
+  });
 
   paddleEl.style.left = s.paddle.x + "px";
   ballEl.style.left = (s.ball.x - s.ball.radius) + "px";
   ballEl.style.top = (s.ball.y - s.ball.radius) + "px";
 
   s.bricks.forEach((brick, i) => {
-    brickEls[i].style.visibility = brick.hp > 0 ? "visible" : "hidden";
+    const element = brickEls[i];
+    element.style.visibility = brick.hp > 0 ? "visible" : "hidden";
+    element.dataset.hp = brick.hp;
   });
 
   const message = layThongBao(s);
@@ -283,6 +340,7 @@ function xuLyHanhDongChinh() {
 }
 
 document.addEventListener("keydown", (e) => {
+  if (e.target instanceof HTMLButtonElement && [" ", "Enter"].includes(e.key)) return;
   switch (e.key) {
     case "ArrowLeft": case "a": case "A":
       keys.left = true; dongBoHuong(); e.preventDefault(); break;
@@ -319,4 +377,6 @@ function khungHinh(now) {
   hienThi();
   requestAnimationFrame(khungHinh);
 }
+taoNutChonMan();
+hienThi();
 requestAnimationFrame(khungHinh);

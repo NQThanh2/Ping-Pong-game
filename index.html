@@ -1,101 +1,106 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ping Pong</title>
     <style>
+        body, .level-selector {
+            display: flex;
+            justify-content: center;
+        }
+
         body {
             margin: 0;
             padding: 30px;
-            background-color: #e5e5e5;
-            display: flex;
-            justify-content: center;
+            background: #e5e5e5;
             font-family: sans-serif;
+            flex-direction: column;
+            align-items: center;
         }
+
         #board {
+            position: relative;
             width: 500px;
             height: 500px;
-            background-color: black;
-            border-top: 5px solid skyblue;
-            border-left: 5px solid skyblue;
-            border-right: 5px solid skyblue;
-            position: relative;
-            box-sizing: content-box;
+            background: black;
+            border: 5px solid skyblue;
+            border-bottom: 0;
         }
 
-        .score {
-            position: absolute;
+        #board > div, .brick { position: absolute; }
+        .score, .lives, .brick, .message { user-select: none; }
+        .brick, .ball, .paddle { height: 10px; }
+
+        .score, .lives {
             top: 10px;
-            left: 10px;
-            color: white;
             font-size: 20px;
             line-height: 1;
-            user-select: none;
         }
 
-        .brick-container {
-            position: absolute;
-            top: 45px;
-            left: 15px;
-            display: grid;
-            grid-template-columns: repeat(8, 50px);
-            grid-auto-rows: 10px;
-            gap: 10px;
-        }
-
-        .brick {
-            width: 50px;
-            height: 10px;
-            background-color: skyblue;
-        }
+        .score { left: 10px; color: white; }
+        .lives { right: 10px; color: tomato; }
+        .brick-container { inset: 0; }
+        .brick { width: 50px; background: skyblue; }
+        .brick[data-hp="2"] { background: #ffb347; }
+        .brick[data-hp="3"] { background: #d9364f; }
 
         .ball {
-            position: absolute;
             width: 10px;
-            height: 10px;
-            background-color: red;
+            background: red;
             bottom: 15px;
             left: 245px;
         }
 
         .paddle {
-            position: absolute;
             width: 80px;
-            height: 10px;
-            background-color: lightgreen;
+            background: lightgreen;
             bottom: 5px;
             left: 210px; /* (500 - 80) / 2 */
         }
 
-        .lives {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            color: tomato;
-            font-size: 20px;
-            line-height: 1;
-            user-select: none;
-        }
-
         .message {
-            position: absolute;
             top: 50%;
             left: 0;
             right: 0;
             padding: 20px;
             transform: translateY(-50%);
             color: white;
-            background-color: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.8);
             text-align: center;
             font-size: 24px;
             line-height: 1.6;
             pointer-events: none;
-            user-select: none;
         }
 
-        .message small {
-            font-size: 16px;
+        .message small { font-size: 16px; }
+
+        .level-selector {
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .level-button {
+            padding: 8px 20px;
+            border: 2px solid #247ba0;
+            border-radius: 6px;
+            background: skyblue;
+            color: #12384a;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        .level-button:hover { background: #b9e5f6; }
+
+        .level-button:focus-visible {
+            outline: 3px solid #12384a;
+            outline-offset: 3px;
+        }
+
+        .level-button[aria-pressed="true"] {
+            background: #176b91;
+            color: white;
         }
     </style>
 </head>
@@ -103,39 +108,12 @@
     <div id="board">
         <div class="score">0</div>
         <div class="lives">❤️❤️❤️</div>
-        <div class="brick-container">
-            <!-- Hàng 1 -->
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <!-- Hàng 2 -->
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <!-- Hàng 3 -->
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-            <div class="brick"></div>
-        </div>
+        <div class="brick-container"></div>
         <div class="ball"></div>
         <div class="paddle"></div>
         <div class="message" role="status" aria-live="polite"></div>
     </div>
+    <nav class="level-selector" aria-label="Chọn màn"></nav>
     <script src="game.js"></script>
 </body>
 </html>
