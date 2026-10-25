@@ -107,6 +107,9 @@ function taoGach() {
 
 function taoGachThep() {
   var viTri = [0, 50, 125, 175, 225, 275, 325, 400, 450];
+  if (layManHienTai().type === "portal") {
+    viTri = [0, 50, 100, 150, 200, 300, 350, 400, 450];
+  }
   var result = [];
   for (var i = 0; i < viTri.length; i++) {
     result.push({x: viTri[i], y: 170, width: 50, height: 10, hp: Infinity});
