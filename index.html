@@ -8,9 +8,8 @@
         body {
             margin: 0;
             padding: 30px;
-            background-color: #e5e5e5;
+            background: #e5e5e5;
             display: flex;
-            justify-content: center;
             flex-direction: column;
             align-items: center;
             font-family: sans-serif;
@@ -18,98 +17,70 @@
         #board {
             width: 500px;
             height: 500px;
-            background-color: black;
-            border-top: 5px solid skyblue;
-            border-left: 5px solid skyblue;
-            border-right: 5px solid skyblue;
+            background: black;
+            border: 5px solid skyblue;
+            border-bottom: 0;
             position: relative;
-            box-sizing: content-box;
         }
 
-        .score {
+        .score, .lives, .brick-container, .portal-container,
+        .brick, .portal, .ball, .paddle, .message {
             position: absolute;
+        }
+
+        .score, .lives {
             top: 10px;
-            left: 10px;
-            color: white;
             font-size: 20px;
             line-height: 1;
             user-select: none;
         }
+        .score { left: 10px; color: white; }
+        .lives { right: 10px; color: tomato; }
 
-        .brick-container {
-            position: absolute;
+        .brick-container, .portal-container {
             inset: 0;
         }
 
         .brick {
-            position: absolute;
-            box-sizing: border-box;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             width: 50px;
             height: 10px;
-            background-color: skyblue;
-            color: #17202a;
-            font-size: 11px;
-            font-weight: bold;
-            line-height: 1;
-            user-select: none;
+            background: skyblue;
         }
-
-        .brick[data-hp="2"] {
-            background-color: #ffb347;
-        }
-
-        .brick[data-hp="3"] {
-            background-color: #d9364f;
-            color: white;
-        }
-
+        .brick[data-hp="2"] { background: #ffb347; }
+        .brick[data-hp="3"] { background: #d9364f; }
         .brick[data-steel="true"] {
-            background: linear-gradient(#dce3e8, #737e88);
+            box-sizing: border-box;
+            background: #929da7;
             border: 1px solid #9aa4ae;
-            box-shadow: inset 0 1px #f6f8fa;
         }
 
-        .portal-container { position: absolute; inset: 0; pointer-events: none; }
-        .portal { --portal-color: #31cfff; position: absolute; box-sizing: border-box; border: 3px solid var(--portal-color); border-radius: 50%; background: rgba(15, 23, 42, 0.75); box-shadow: 0 0 12px var(--portal-color); }
-        .portal[data-portal="B"] { --portal-color: #bf7bff; }
+        .portal-container { pointer-events: none; }
+        .portal {
+            box-sizing: border-box;
+            border: 3px solid #31cfff;
+            border-radius: 50%;
+            background: #0f172a;
+        }
+        .portal[data-portal="B"] { border-color: #bf7bff; }
 
         .level-selector { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 18px; max-width: 510px; }
         .level-button { padding: 8px 20px; border: 2px solid #247ba0; border-radius: 6px; background: skyblue; color: #12384a; cursor: pointer; font: inherit; }
         .level-button.active { background: #176b91; color: white; }
 
         .ball {
-            position: absolute;
             width: 10px;
             height: 10px;
-            background-color: red;
-            bottom: 15px;
-            left: 245px;
+            background: red;
         }
 
         .paddle {
-            position: absolute;
             width: 80px;
             height: 10px;
-            background-color: lightgreen;
+            background: lightgreen;
             bottom: 5px;
-            left: 210px; /* (500 - 80) / 2 */
-        }
-
-        .lives {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            color: tomato;
-            font-size: 20px;
-            line-height: 1;
-            user-select: none;
         }
 
         .message {
-            position: absolute;
             z-index: 1;
             top: 50%;
             left: 0;
@@ -117,7 +88,7 @@
             padding: 20px;
             transform: translateY(-50%);
             color: white;
-            background-color: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.8);
             text-align: center;
             font-size: 24px;
             line-height: 1.6;

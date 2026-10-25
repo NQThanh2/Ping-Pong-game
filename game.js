@@ -1,5 +1,5 @@
-var hang = 500;
-var cot = 500;
+var rong = 500;
+var cao = 500;
 var cacMan = [
   {name: "Khởi động", type: "normal", rows: 4, speed: 250},
   {name: "Gạch có giáp", type: "armored", rows: 4, speed: 250},
@@ -23,10 +23,11 @@ function gioiHan(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function kiemTraVaChamTronChuNhat(circle, rect) {
-  var x = gioiHan(circle.x, rect.x, rect.x + rect.width);
-  var y = gioiHan(circle.y, rect.y, rect.y + rect.height);
-  return (circle.x - x) * (circle.x - x) + (circle.y - y) * (circle.y - y) < circle.radius * circle.radius;
+function kiemTraVaCham(tron, hop) {
+  return tron.x + tron.radius > hop.x &&
+    tron.x - tron.radius < hop.x + hop.width &&
+    tron.y + tron.radius > hop.y &&
+    tron.y - tron.radius < hop.y + hop.height;
 }
 
 function layManHienTai() {
@@ -64,7 +65,7 @@ function taiMan(levelNumber) {
   huongDiChuyen = 0;
   danhSachGach = taoGach();
   danhSachCong = taoCongKhongGian();
-  thanhDo.x = (hang - thanhDo.width) / 2;
+  thanhDo.x = (rong - thanhDo.width) / 2;
   datLaiBong();
 }
 
@@ -132,7 +133,7 @@ function datLaiBong() {
 function thaBong() {
   var speed = layManHienTai().speed;
   bong.vx = speed * 0.35;
-  bong.vy = -Math.sqrt(speed * speed - bong.vx * bong.vx);
+  bong.vy = -speed * 0.9;
   trangThai = "playing";
 }
 
@@ -164,7 +165,7 @@ function capNhat(dt) {
   diChuyenBong(dt);
   xuLyCongKhongGian();
   xuLyVaChamTuong();
-  if (bong.y - bong.radius > cot) {
+  if (bong.y - bong.radius > cao) {
     matMang();
     return;
   }
@@ -175,7 +176,7 @@ function capNhat(dt) {
 
 function diChuyenThanhDo(dt) {
   thanhDo.x = gioiHan(thanhDo.x + huongDiChuyen * thanhDo.speed * dt,
-    0, hang - thanhDo.width);
+    0, rong - thanhDo.width);
 }
 
 function diChuyenBong(dt) {
@@ -236,8 +237,8 @@ function xuLyVaChamTuong() {
   if (b.x < b.radius) {
     b.x = b.radius; b.vx = Math.abs(b.vx);
   }
-  if (b.x > hang - b.radius) {
-    b.x = hang - b.radius; b.vx = -Math.abs(b.vx);
+  if (b.x > rong - b.radius) {
+    b.x = rong - b.radius; b.vx = -Math.abs(b.vx);
    }
   if (b.y < b.radius) {
     b.y = b.radius; b.vy = Math.abs(b.vy);
@@ -247,12 +248,17 @@ function xuLyVaChamTuong() {
 function xuLyVaChamThanhDo() {
   var b = bong;
   var p = thanhDo;
-  if (b.vy <= 0 || !kiemTraVaChamTronChuNhat(b, p)) return;
+  if (b.vy <= 0 || !kiemTraVaCham(b, p)) return;
   b.y = p.y - b.radius;
-  var offset = gioiHan((b.x - (p.x + p.width / 2)) / (p.width / 2), -1, 1);
   var speed = layManHienTai().speed;
-  b.vx = speed * Math.sin(offset * Math.PI / 3);
-  b.vy = -Math.sqrt(speed * speed - b.vx * b.vx);
+  if (b.x < p.x + p.width / 3) {
+    b.vx = -speed * 0.6;
+  } else if (b.x > p.x + p.width * 2 / 3) {
+    b.vx = speed * 0.6;
+  } else {
+    b.vx = 0;
+  }
+  b.vy = -speed * 0.9;
 }
 
 function phanXaBong(rect) {
@@ -281,7 +287,7 @@ function phanXaBong(rect) {
 function xuLyVaChamGach() {
   for (var i = 0; i < danhSachGach.length; i++) {
     var brick = danhSachGach[i];
-    if (brick.hp <= 0 || !kiemTraVaChamTronChuNhat(bong, brick)) {
+    if (brick.hp <= 0 || !kiemTraVaCham(bong, brick)) {
       continue;
     }
     phanXaBong(brick);
