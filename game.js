@@ -1,301 +1,353 @@
-"use strict";
+var hang = 500;
+var cot = 500;
+var cacMan = [
+  {name: "Khởi động", type: "normal", rows: 4, speed: 250},
+  {name: "Gạch có giáp", type: "armored", rows: 4, speed: 250},
+  {name: "Gạch di chuyển", type: "moving", rows: 4, speed: 250, moveAmplitude: 15, movePeriod: 4},
+  {name: "Gạch không thể phá", type: "maze", rows: 4, speed: 250, moveAmplitude: 15, movePeriod: 4},
+  {name: "Cổng dịch chuyển", type: "portal", rows: 4, speed: 250, moveAmplitude: 15, movePeriod: 4}
+];
+var thanhDo = {x: 0, y: 485, width: 80, height: 10, speed: 350};
+var bong = {x: 0, y: 0, radius: 5, vx: 0, vy: 0};
+var manHienTai = 1;
+var diem = 0;
+var soMang = 3;
+var trangThai = "ready";
+var thoiGian = 0;
+var huongDiChuyen = 0;
+var danhSachGach = [];
+var danhSachCong = [];
+var khoaCong = false;
 
-class BrickBreakerGame {
-  constructor() {
-    this.width = 500;
-    this.height = 500;
-    this.levels = [
-      { name: "Khởi động", type: "normal", rows: 4, speed: 250 },
-      { name: "Gạch có giáp", type: "armored", rows: 4, speed: 250 },
-      { name: "Gạch di chuyển", type: "moving", rows: 4, speed: 250, moveAmplitude: 15, movePeriod: 4 },
-      { name: "Gạch không thể phá", type: "maze", rows: 4, speed: 250, moveAmplitude: 15, movePeriod: 4 },
-      { name: "Cổng dịch chuyển", type: "portal", rows: 4, speed: 250, moveAmplitude: 15, movePeriod: 4 }
-    ];
-    this.paddle = { x: 0, y: 485, width: 80, height: 10, speed: 350 }; // cách đáy 5px
-    this.ball = { x: 0, y: 0, radius: 5, vx: 0, vy: 0 };
-    this.choiLai();
+function gioiHan(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
+
+function kiemTraVaChamTronChuNhat(circle, rect) {
+  var x = gioiHan(circle.x, rect.x, rect.x + rect.width);
+  var y = gioiHan(circle.y, rect.y, rect.y + rect.height);
+  return (circle.x - x) * (circle.x - x) + (circle.y - y) * (circle.y - y) < circle.radius * circle.radius;
+}
+
+function layManHienTai() {
+  return cacMan[manHienTai - 1];
+}
+
+function demGachConLai() {
+  var soGach = 0;
+  for (var i = 0; i < danhSachGach.length; i++) {
+    if (danhSachGach[i].hp > 0 && danhSachGach[i].hp !== Infinity) {
+      soGach++;
+    }
   }
+  return soGach;
+}
 
-  gioiHan(value, min, max) {
-    return Math.max(min, Math.min(max, value));
-  }
+function coManTiepTheo() {
+  return manHienTai < cacMan.length;
+}
 
-  kiemTraVaChamTronChuNhat(circle, rect) {
-    const x = this.gioiHan(circle.x, rect.x, rect.x + rect.width);
-    const y = this.gioiHan(circle.y, rect.y, rect.y + rect.height);
-    return (circle.x - x) ** 2 + (circle.y - y) ** 2 < circle.radius ** 2;
-  }
+function choiLai() {
+  chonMan(1);
+}
 
-  layManHienTai() {
-    return this.levels[this.level - 1];
-  }
+function chonMan(levelNumber) {
+  diem = 0;
+  soMang = 3;
+  taiMan(levelNumber);
+}
 
-  demGachConLai() {
-    return this.bricks.filter(brick => brick.hp > 0 && brick.hp !== Infinity).length;
-  }
+function taiMan(levelNumber) {
+  manHienTai = levelNumber;
+  trangThai = "ready";
+  thoiGian = 0;
+  huongDiChuyen = 0;
+  danhSachGach = taoGach();
+  danhSachCong = taoCongKhongGian();
+  thanhDo.x = (hang - thanhDo.width) / 2;
+  datLaiBong();
+}
 
-  coManTiepTheo() {
-    return this.level < this.levels.length;
-  }
-
-  choiLai() {
-    this.chonMan(1);
-  }
-
-  chonMan(levelNumber) {
-    this.score = 0;
-    this.lives = 3;
-    this.taiMan(levelNumber);
-  }
-
-  taiMan(levelNumber) {
-    this.level = levelNumber;
-    this.status = "ready";
-    this.time = 0;
-    this.direction = 0;
-    this.bricks = this.taoGach();
-    this.portals = this.taoCongKhongGian();
-    this.paddle.x = (this.width - this.paddle.width) / 2;
-    this.datLaiBong();
-  }
-
-  taoGach() {
-    const config = this.layManHienTai();
-    const columns = 8, width = 50, height = 10, gap = 10;
-    const startX = 15, startY = 45;
-    const result = [];
-    for (let row = 0; row < config.rows; row++) {
-      for (let column = 0; column < columns; column++) {
-        const hp = config.type === "normal" ? 1 : 1 + (row + column) % 3;
-        const x = startX + column * (width + gap);
-        result.push({
-          row,
-          x, baseX: x,
-          y: startY + row * (height + gap),
-          width, height, hp
-        });
+function taoGach() {
+  var config = layManHienTai();
+  var columns = 8;
+  var width = 50;
+  var height = 10;
+  var gap = 10;
+  var startX = 15;
+  var startY = 45;
+  var result = [];
+  for (var row = 0; row < config.rows; row++) {
+    for (var column = 0; column < columns; column++) {
+      var hp = 1;
+      if (config.type !== "normal") {
+        hp = 1 + (row + column) % 3;
       }
-    }
-    if (["maze", "portal"].includes(config.type)) result.push(...this.taoGachThep());
-    return result;
-  }
-
-  taoGachThep() {
-    return [0, 50, 125, 175, 225, 275, 325, 400, 450].map(x => ({
-      x, y: 170, width: 50, height: 10, hp: Infinity
-    }));
-  }
-
-  taoCongKhongGian() {
-    if (this.layManHienTai().type !== "portal") return [];
-    return [
-      { id: "A", targetId: "B", x: 320, y: 300, radius: 18 },
-      { id: "B", targetId: "A", x: 250, y: 140, radius: 18 }
-    ];
-  }
-
-  datLaiBong() {
-    this.ball.x = this.paddle.x + this.paddle.width / 2;
-    this.ball.y = this.paddle.y - this.ball.radius - 1;
-    this.ball.vx = 0;
-    this.ball.vy = 0;
-    this.portalLocked = false;
-  }
-
-  thaBong() {
-    const speed = this.layManHienTai().speed;
-    this.ball.vx = speed * 0.35;
-    this.ball.vy = -Math.sqrt(speed ** 2 - this.ball.vx ** 2);
-    this.status = "playing";
-  }
-
-  sangManTiepTheo() {
-    if (!this.coManTiepTheo()) return false;
-    this.taiMan(this.level + 1);
-    return true;
-  }
-
-  datHuong(direction) {
-    this.direction = Math.sign(direction);
-  }
-
-  capNhat(dt) {
-    if (!["ready", "playing"].includes(this.status)) return;
-    this.diChuyenThanhDo(dt);
-    if (this.status === "ready") { this.datLaiBong(); return; }
-    this.time += dt;
-    this.diChuyenGach();
-    this.diChuyenBong(dt);
-    this.xuLyCongKhongGian();
-    this.xuLyVaChamTuong();
-    if (this.ball.y - this.ball.radius > this.height) { this.matMang(); return; }
-    this.xuLyVaChamThanhDo();
-    this.xuLyVaChamGach();
-    this.kiemTraHoanThanhMan();
-  }
-
-  diChuyenThanhDo(dt) {
-    this.paddle.x = this.gioiHan(this.paddle.x + this.direction * this.paddle.speed * dt,
-      0, this.width - this.paddle.width);
-  }
-
-  diChuyenBong(dt) {
-    this.ball.x += this.ball.vx * dt;
-    this.ball.y += this.ball.vy * dt;
-  }
-
-  xuLyCongKhongGian() {
-    const b = this.ball;
-    let portal = null;
-    for (let i = 0; i < this.portals.length; i++) {
-      const p = this.portals[i];
-      const dx = b.x - p.x;
-      const dy = b.y - p.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance <= p.radius + b.radius) {
-        portal = p;
-        break;
-      }
-    }
-    if (this.portalLocked) {
-      if (!portal) this.portalLocked = false;
-      return;
-    }
-    if (!portal) return;
-    for (let i = 0; i < this.portals.length; i++) {
-      const destination = this.portals[i];
-      if (destination.id === portal.targetId) {
-        b.x = destination.x;
-        b.y = destination.y;
-        this.portalLocked = true;
-        break;
-      }
+      var x = startX + column * (width + gap);
+      result.push({
+        row: row,
+        x: x,
+        baseX: x,
+        y: startY + row * (height + gap),
+        width: width,
+        height: height,
+        hp: hp
+      });
     }
   }
-
-  diChuyenGach() {
-    const config = this.layManHienTai();
-    if (!["moving", "maze", "portal"].includes(config.type)) return;
-    const offset = config.moveAmplitude * Math.sin(2 * Math.PI * this.time / config.movePeriod);
-    for (const brick of this.bricks) {
-      if (brick.hp === Infinity) continue;
-      brick.x = brick.baseX + (brick.row % 2 === 0 ? offset : -offset);
+  if (config.type === "maze" || config.type === "portal") {
+    var gachThep = taoGachThep();
+    for (var i = 0; i < gachThep.length; i++) {
+      result.push(gachThep[i]);
     }
   }
+  return result;
+}
 
-  xuLyVaChamTuong() {
-    const b = this.ball;
-    if (b.x < b.radius) { b.x = b.radius; b.vx = Math.abs(b.vx); }
-    if (b.x > this.width - b.radius) { b.x = this.width - b.radius; b.vx = -Math.abs(b.vx); }
-    if (b.y < b.radius) { b.y = b.radius; b.vy = Math.abs(b.vy); }
+function taoGachThep() {
+  var viTri = [0, 50, 125, 175, 225, 275, 325, 400, 450];
+  var result = [];
+  for (var i = 0; i < viTri.length; i++) {
+    result.push({x: viTri[i], y: 170, width: 50, height: 10, hp: Infinity});
   }
+  return result;
+}
 
-  xuLyVaChamThanhDo() {
-    const b = this.ball;
-    const p = this.paddle;
-    if (b.vy <= 0 || !this.kiemTraVaChamTronChuNhat(b, p)) return;
-    b.y = p.y - b.radius;
-    const offset = this.gioiHan((b.x - (p.x + p.width / 2)) / (p.width / 2), -1, 1);
-    const speed = this.layManHienTai().speed;
-    b.vx = speed * Math.sin(offset * Math.PI / 3);
-    b.vy = -Math.sqrt(speed ** 2 - b.vx ** 2);
+function taoCongKhongGian() {
+  if (layManHienTai().type !== "portal") return [];
+  return [
+    { id: "A", targetId: "B", x: 320, y: 300, radius: 18 },
+    { id: "B", targetId: "A", x: 250, y: 140, radius: 18 }
+  ];
+}
+
+function datLaiBong() {
+  bong.x = thanhDo.x + thanhDo.width / 2;
+  bong.y = thanhDo.y - bong.radius - 1;
+  bong.vx = 0;
+  bong.vy = 0;
+  khoaCong = false;
+}
+
+function thaBong() {
+  var speed = layManHienTai().speed;
+  bong.vx = speed * 0.35;
+  bong.vy = -Math.sqrt(speed * speed - bong.vx * bong.vx);
+  trangThai = "playing";
+}
+
+function sangManTiepTheo() {
+  if (!coManTiepTheo()) return false;
+  taiMan(manHienTai + 1);
+  return true;
+}
+
+function datHuong(direction) {
+  if (direction > 0) {
+    huongDiChuyen = 1;
+  } else if (direction < 0) {
+    huongDiChuyen = -1;
+  } else {
+    huongDiChuyen = 0;
   }
+}
 
-  phanXaBong(rect) {
-    const b = this.ball;
-    const overlapX = Math.min(b.x + b.radius - rect.x, rect.x + rect.width - b.x + b.radius);
-    const overlapY = Math.min(b.y + b.radius - rect.y, rect.y + rect.height - b.y + b.radius);
-    if (overlapX < overlapY) {
-      if (b.x < rect.x + rect.width / 2) {
-        b.x = rect.x - b.radius;
-        b.vx = -Math.abs(b.vx);
-      } else {
-        b.x = rect.x + rect.width + b.radius;
-        b.vx = Math.abs(b.vx);
-      }
-    } else {
-      if (b.y < rect.y + rect.height / 2) {
-        b.y = rect.y - b.radius;
-        b.vy = -Math.abs(b.vy);
-      } else {
-        b.y = rect.y + rect.height + b.radius;
-        b.vy = Math.abs(b.vy);
-      }
-    }
+function capNhat(dt) {
+  if (trangThai !== "ready" && trangThai !== "playing") return;
+  diChuyenThanhDo(dt);
+  if (trangThai === "ready") {
+    datLaiBong();
+    return;
   }
+  thoiGian += dt;
+  diChuyenGach();
+  diChuyenBong(dt);
+  xuLyCongKhongGian();
+  xuLyVaChamTuong();
+  if (bong.y - bong.radius > cot) {
+    matMang();
+    return;
+  }
+  xuLyVaChamThanhDo();
+  xuLyVaChamGach();
+  kiemTraHoanThanhMan();
+}
 
-  xuLyVaChamGach() {
-    for (const brick of this.bricks) {
-      if (brick.hp <= 0 || !this.kiemTraVaChamTronChuNhat(this.ball, brick)) continue;
-      this.phanXaBong(brick);
-      this.danhTrungGach(brick);
+function diChuyenThanhDo(dt) {
+  thanhDo.x = gioiHan(thanhDo.x + huongDiChuyen * thanhDo.speed * dt,
+    0, hang - thanhDo.width);
+}
+
+function diChuyenBong(dt) {
+  bong.x += bong.vx * dt;
+  bong.y += bong.vy * dt;
+}
+
+function xuLyCongKhongGian() {
+  var b = bong;
+  var portal = null;
+  for (var i = 0; i < danhSachCong.length; i++) {
+    var p = danhSachCong[i];
+    var dx = b.x - p.x;
+    var dy = b.y - p.y;
+    var distance = Math.sqrt(dx * dx + dy * dy);
+    if (distance <= p.radius + b.radius) {
+      portal = p;
       break;
     }
   }
-
-  danhTrungGach(brick) {
-    if (brick.hp === Infinity) return;
-    brick.hp--;
-    this.score += brick.hp === 0 ? 10 : 2;
+  if (khoaCong) {
+    if (!portal) khoaCong = false;
+    return;
   }
-
-  matMang() {
-    this.lives--;
-    this.direction = 0;
-    this.datLaiBong();
-    this.status = this.lives === 0 ? "gameover" : "ready";
+  if (!portal) return;
+  for (var i = 0; i < danhSachCong.length; i++) {
+    var destination = danhSachCong[i];
+    if (destination.id === portal.targetId) {
+      b.x = destination.x;
+      b.y = destination.y;
+      khoaCong = true;
+      break;
+    }
   }
-
-  kiemTraHoanThanhMan() {
-    if (this.demGachConLai() === 0) this.hoanThanhMan();
-  }
-
-  hoanThanhMan() {
-    this.score += 100;
-    this.lives = Math.min(5, this.lives + 1);
-    this.direction = 0;
-    this.status = "levelClear";
-  }
-
 }
 
-const game = new BrickBreakerGame();
+function diChuyenGach() {
+  var config = layManHienTai();
+  if (config.type !== "moving" && config.type !== "maze" && config.type !== "portal") {
+    return;
+  }
+  var offset = config.moveAmplitude * Math.sin(2 * Math.PI * thoiGian / config.movePeriod);
+  for (var i = 0; i < danhSachGach.length; i++) {
+    var brick = danhSachGach[i];
+    if (brick.hp === Infinity) {
+      continue;
+    }
+    if (brick.row % 2 === 0) {
+      brick.x = brick.baseX + offset;
+    } else {
+      brick.x = brick.baseX - offset;
+    }
+  }
+}
 
-const scoreEl = document.querySelector(".score");
-const livesEl = document.querySelector(".lives");
-const messageEl = document.querySelector(".message");
-const ballEl = document.querySelector(".ball");
-const paddleEl = document.querySelector(".paddle");
-const brickContainerEl = document.querySelector(".brick-container");
-const portalContainerEl = document.querySelector(".portal-container");
-const levelSelectorEl = document.querySelector(".level-selector");
-let brickEls = [];
-let manDangHienThi = 0;
-let nutChonManEls = [];
+function xuLyVaChamTuong() {
+  var b = bong;
+  if (b.x < b.radius) {
+    b.x = b.radius; b.vx = Math.abs(b.vx);
+  }
+  if (b.x > hang - b.radius) {
+    b.x = hang - b.radius; b.vx = -Math.abs(b.vx);
+   }
+  if (b.y < b.radius) {
+    b.y = b.radius; b.vy = Math.abs(b.vy);
+  }
+}
 
-const keys = { left: false, right: false };
+function xuLyVaChamThanhDo() {
+  var b = bong;
+  var p = thanhDo;
+  if (b.vy <= 0 || !kiemTraVaChamTronChuNhat(b, p)) return;
+  b.y = p.y - b.radius;
+  var offset = gioiHan((b.x - (p.x + p.width / 2)) / (p.width / 2), -1, 1);
+  var speed = layManHienTai().speed;
+  b.vx = speed * Math.sin(offset * Math.PI / 3);
+  b.vy = -Math.sqrt(speed * speed - b.vx * b.vx);
+}
+
+function phanXaBong(rect) {
+  var b = bong;
+  var overlapX = Math.min(b.x + b.radius - rect.x, rect.x + rect.width - b.x + b.radius);
+  var overlapY = Math.min(b.y + b.radius - rect.y, rect.y + rect.height - b.y + b.radius);
+  if (overlapX < overlapY) {
+    if (b.x < rect.x + rect.width / 2) {
+      b.x = rect.x - b.radius;
+      b.vx = -Math.abs(b.vx);
+    } else {
+      b.x = rect.x + rect.width + b.radius;
+      b.vx = Math.abs(b.vx);
+    }
+  } else {
+    if (b.y < rect.y + rect.height / 2) {
+      b.y = rect.y - b.radius;
+      b.vy = -Math.abs(b.vy);
+    } else {
+      b.y = rect.y + rect.height + b.radius;
+      b.vy = Math.abs(b.vy);
+    }
+  }
+}
+
+function xuLyVaChamGach() {
+  for (var i = 0; i < danhSachGach.length; i++) {
+    var brick = danhSachGach[i];
+    if (brick.hp <= 0 || !kiemTraVaChamTronChuNhat(bong, brick)) {
+      continue;
+    }
+    phanXaBong(brick);
+    danhTrungGach(brick);
+    break;
+  }
+}
+
+function danhTrungGach(brick) {
+  if (brick.hp === Infinity) return;
+  brick.hp--;
+  diem += brick.hp === 0 ? 10 : 2;
+}
+
+function matMang() {
+  soMang--;
+  huongDiChuyen = 0;
+  datLaiBong();
+  trangThai = soMang === 0 ? "gameover" : "ready";
+}
+
+function kiemTraHoanThanhMan() {
+  if (demGachConLai() === 0) hoanThanhMan();
+}
+
+function hoanThanhMan() {
+  diem += 100;
+  soMang = Math.min(5, soMang + 1);
+  huongDiChuyen = 0;
+  trangThai = "levelClear";
+}
+
+var scoreEl = document.querySelector(".score");
+var livesEl = document.querySelector(".lives");
+var messageEl = document.querySelector(".message");
+var ballEl = document.querySelector(".ball");
+var paddleEl = document.querySelector(".paddle");
+var brickContainerEl = document.querySelector(".brick-container");
+var portalContainerEl = document.querySelector(".portal-container");
+var levelSelectorEl = document.querySelector(".level-selector");
+var brickEls = [];
+var manDangHienThi = 0;
+var nutChonManEls = [];
+var keys = { left: false, right: false };
 
 function dongBoHuong() {
-  game.datHuong((keys.right ? 1 : 0) - (keys.left ? 1 : 0));
+  datHuong((keys.right ? 1 : 0) - (keys.left ? 1 : 0));
+}
+
+function chonManTuNut(event) {
+  keys.left = keys.right = false;
+  chonMan(Number(event.currentTarget.dataset.level));
+  hienThi();
+  event.currentTarget.blur();
 }
 
 function taoNutChonMan() {
   levelSelectorEl.innerHTML = "";
   nutChonManEls = [];
-  for (let i = 0; i < game.levels.length; i++) {
-    const level = game.levels[i];
-    const levelNumber = i + 1;
-    const button = document.createElement("button");
+  for (var i = 0; i < cacMan.length; i++) {
+    var button = document.createElement("button");
     button.type = "button";
     button.className = "level-button";
-    button.dataset.level = levelNumber;
-    button.textContent = `Màn ${levelNumber}: ${level.name}`;
-    button.addEventListener("click", () => {
-      keys.left = keys.right = false;
-      game.chonMan(levelNumber);
-      hienThi();
-      button.blur();
-    });
+    button.dataset.level = i + 1;
+    button.textContent = "Màn " + (i + 1) + ": " + cacMan[i].name;
+    button.addEventListener("click", chonManTuNut);
     nutChonManEls.push(button);
     levelSelectorEl.appendChild(button);
   }
@@ -304,9 +356,9 @@ function taoNutChonMan() {
 function taoGiaoDienGach(bricks) {
   brickContainerEl.innerHTML = "";
   brickEls = [];
-  for (let i = 0; i < bricks.length; i++) {
-    const brick = bricks[i];
-    const element = document.createElement("div");
+  for (var i = 0; i < bricks.length; i++) {
+    var brick = bricks[i];
+    var element = document.createElement("div");
     element.className = "brick";
     element.style.left = brick.x + "px";
     element.style.top = brick.y + "px";
@@ -319,9 +371,9 @@ function taoGiaoDienGach(bricks) {
 
 function taoGiaoDienCong(portals) {
   portalContainerEl.innerHTML = "";
-  for (let i = 0; i < portals.length; i++) {
-    const portal = portals[i];
-    const element = document.createElement("div");
+  for (var i = 0; i < portals.length; i++) {
+    var portal = portals[i];
+    var element = document.createElement("div");
     element.className = "portal";
     element.dataset.portal = portal.id;
     element.style.left = (portal.x - portal.radius) + "px";
@@ -332,11 +384,12 @@ function taoGiaoDienCong(portals) {
 }
 
 function layThongBao() {
-  switch (game.status) {
+  switch (trangThai) {
     case "ready":
-      return `Màn ${game.level}: ${game.layManHienTai().name}<br><small>Nhấn Space để thả bóng</small>`;
+      return "Màn " + manHienTai + ": " + layManHienTai().name + "<br><small>Nhấn Space để thả bóng</small>";
     case "levelClear":
-      return `Hoàn thành màn ${game.level}! +100 điểm<br><small>Nhấn ${game.coManTiepTheo() ? "Space để sang màn tiếp theo" : "R để chơi lại"}</small>`;
+      return "Hoàn thành màn " + manHienTai + "! +100 điểm<br><small>Nhấn " +
+        (coManTiepTheo() ? "Space để sang màn tiếp theo" : "R để chơi lại") + "</small>";
     case "gameover":
       return "Game Over<br><small>Nhấn R để chơi lại</small>";
     default:
@@ -345,71 +398,87 @@ function layThongBao() {
 }
 
 function hienThi() {
-  if (manDangHienThi !== game.level) {
-    taoGiaoDienGach(game.bricks);
-    taoGiaoDienCong(game.portals);
-    manDangHienThi = game.level;
+  if (manDangHienThi !== manHienTai) {
+    taoGiaoDienGach(danhSachGach);
+    taoGiaoDienCong(danhSachCong);
+    manDangHienThi = manHienTai;
   }
-  scoreEl.textContent = game.score;
-  livesEl.textContent = "♥ " + game.lives;
-  nutChonManEls.forEach(button => {
-    button.classList.toggle("active", Number(button.dataset.level) === game.level);
-  });
+  scoreEl.textContent = diem;
+  livesEl.textContent = "♥ " + soMang;
+  for (var i = 0; i < nutChonManEls.length; i++) {
+    var button = nutChonManEls[i];
+    button.className = Number(button.dataset.level) === manHienTai ? "level-button active" : "level-button";
+  }
 
-  paddleEl.style.left = game.paddle.x + "px";
-  paddleEl.style.width = game.paddle.width + "px";
-  ballEl.style.left = (game.ball.x - game.ball.radius) + "px";
-  ballEl.style.top = (game.ball.y - game.ball.radius) + "px";
+  paddleEl.style.left = thanhDo.x + "px";
+  paddleEl.style.width = thanhDo.width + "px";
+  ballEl.style.left = (bong.x - bong.radius) + "px";
+  ballEl.style.top = (bong.y - bong.radius) + "px";
 
-  game.bricks.forEach((brick, i) => {
-    const element = brickEls[i];
+  for (var j = 0; j < danhSachGach.length; j++) {
+    var brick = danhSachGach[j];
+    var element = brickEls[j];
     element.style.left = brick.x + "px";
     element.style.top = brick.y + "px";
     element.style.visibility = brick.hp > 0 ? "visible" : "hidden";
     element.dataset.hp = brick.hp;
     element.dataset.steel = String(brick.hp === Infinity);
-  });
+  }
 
-  const message = layThongBao();
+  var message = layThongBao();
   messageEl.innerHTML = message;
   messageEl.style.display = message ? "block" : "none";
 }
 
 function xuLyHanhDongChinh() {
-  if (game.status === "ready") game.thaBong();
-  else if (game.status === "levelClear") {
-    if (!game.sangManTiepTheo()) game.choiLai();
-  } else if (game.status === "gameover") game.choiLai();
-}
-
-document.addEventListener("keydown", (e) => {
-  if (e.target instanceof HTMLButtonElement && [" ", "Enter"].includes(e.key)) return;
-  switch (e.key) {
-    case "ArrowLeft": case "a": case "A":
-      keys.left = true; dongBoHuong(); e.preventDefault(); break;
-    case "ArrowRight": case "d": case "D":
-      keys.right = true; dongBoHuong(); e.preventDefault(); break;
-    case " ":
-      xuLyHanhDongChinh(); e.preventDefault(); break;
-    case "r": case "R":
-      game.choiLai(); dongBoHuong(); break;
+  if (trangThai === "ready") {
+    thaBong();
+  } else if (trangThai === "levelClear") {
+    if (!sangManTiepTheo()) choiLai();
+  } else if (trangThai === "gameover") {
+    choiLai();
   }
-});
-
-document.addEventListener("keyup", (e) => {
-  if (["ArrowLeft", "a", "A"].includes(e.key)) keys.left = false;
-  if (["ArrowRight", "d", "D"].includes(e.key)) keys.right = false;
-  dongBoHuong();
-});
-
-let lastTime = performance.now();
-function khungHinh(now) {
-  const dt = Math.min((now - lastTime) / 1000, 1 / 30);
-  game.capNhat(dt);
-  lastTime = now;
-  hienThi();
-  requestAnimationFrame(khungHinh);
 }
+
+function xuLyNhanPhim(event) {
+  if (event.target.tagName === "BUTTON" && (event.key === " " || event.key === "Enter")) return;
+  switch (event.key) {
+    case "ArrowLeft": case "a": case "A":
+      keys.left = true;
+      dongBoHuong();
+      event.preventDefault();
+      break;
+    case "ArrowRight": case "d": case "D":
+      keys.right = true;
+      dongBoHuong();
+      event.preventDefault();
+      break;
+    case " ":
+      xuLyHanhDongChinh();
+      event.preventDefault();
+      break;
+    case "r": case "R":
+      choiLai();
+      dongBoHuong();
+      break;
+  }
+}
+
+function xuLyThaPhim(event) {
+  if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") keys.left = false;
+  if (event.key === "ArrowRight" || event.key === "d" || event.key === "D") keys.right = false;
+  dongBoHuong();
+}
+
+document.addEventListener("keydown", xuLyNhanPhim);
+document.addEventListener("keyup", xuLyThaPhim);
+
+function khungHinh() {
+  capNhat(0.016);
+  hienThi();
+}
+
+choiLai();
 taoNutChonMan();
 hienThi();
-requestAnimationFrame(khungHinh);
+setInterval(khungHinh, 16);
