@@ -1,17 +1,15 @@
 "use strict";
 
-// Logic Brick Breaker — MÀN 1 VÀ 2
-// sân 500 × 500, gạch rộng 50px (8 cột), thanh đỡ 80 × 10, bóng 10 × 10
-// Hệ tọa độ: (0, 0) là góc trên trái của sân, x tăng sang phải, y tăng xuống dưới
 class BrickBreakerGame {
   constructor() {
     this.width = 500;
     this.height = 500;
-    this.step = 1 / 240; // bước vật lý cố định
-    // Mỗi phần tử là một màn; màn 2 bổ sung gạch có 1–3 HP.
     this.levels = [
       { name: "Khởi động", type: "normal", rows: 4, speed: 250 },
-      { name: "Phá giáp", type: "armored", rows: 4, speed: 250 }
+      { name: "Gạch có giáp", type: "armored", rows: 4, speed: 250 },
+      { name: "Gạch di chuyển", type: "moving", rows: 4, speed: 250, moveAmplitude: 15, movePeriod: 4 },
+      { name: "Gạch không thể phá", type: "maze", rows: 4, speed: 250, moveAmplitude: 15, movePeriod: 4 },
+      { name: "Cổng dịch chuyển", type: "portal", rows: 4, speed: 250, moveAmplitude: 15, movePeriod: 4 }
     ];
     this.paddle = { x: 0, y: 485, width: 80, height: 10, speed: 350 }; // cách đáy 5px
     this.ball = { x: 0, y: 0, radius: 5, vx: 0, vy: 0 };
@@ -25,15 +23,15 @@ class BrickBreakerGame {
   kiemTraVaChamTronChuNhat(circle, rect) {
     const x = this.gioiHan(circle.x, rect.x, rect.x + rect.width);
     const y = this.gioiHan(circle.y, rect.y, rect.y + rect.height);
-    return (circle.x - x) ** 2 + (circle.y - y) ** 2 <= circle.radius ** 2;
+    return (circle.x - x) ** 2 + (circle.y - y) ** 2 < circle.radius ** 2;
   }
 
   layManHienTai() {
-    return { ...this.levels[this.level - 1] };
+    return this.levels[this.level - 1];
   }
 
   demGachConLai() {
-    return this.bricks.filter(brick => brick.hp > 0).length;
+    return this.bricks.filter(brick => brick.hp > 0 && brick.hp !== Infinity).length;
   }
 
   coManTiepTheo() {
@@ -45,7 +43,6 @@ class BrickBreakerGame {
   }
 
   chonMan(levelNumber) {
-    if (!Number.isInteger(levelNumber) || levelNumber < 1 || levelNumber > this.levels.length) return;
     this.score = 0;
     this.lives = 3;
     this.taiMan(levelNumber);
@@ -55,14 +52,13 @@ class BrickBreakerGame {
     this.level = levelNumber;
     this.status = "ready";
     this.time = 0;
-    this.accumulator = 0;
     this.direction = 0;
     this.bricks = this.taoGach();
-    this.paddle.x = (this.width - this.paddle.width) / 2; // 210
+    this.portals = this.taoCongKhongGian();
+    this.paddle.x = (this.width - this.paddle.width) / 2;
     this.datLaiBong();
   }
 
-  // Màn 1: 3 hàng gạch 1 HP. Màn 2: 4 hàng gạch 1–3 HP; cùng kích thước 50 × 10.
   taoGach() {
     const config = this.layManHienTai();
     const columns = 8, width = 50, height = 10, gap = 10;
@@ -70,16 +66,32 @@ class BrickBreakerGame {
     const result = [];
     for (let row = 0; row < config.rows; row++) {
       for (let column = 0; column < columns; column++) {
-        const hp = config.type === "armored" ? 1 + (row + column) % 3 : 1;
+        const hp = config.type === "normal" ? 1 : 1 + (row + column) % 3;
+        const x = startX + column * (width + gap);
         result.push({
-          id: row * columns + column, row, column,
-          x: startX + column * (width + gap),
+          row,
+          x, baseX: x,
           y: startY + row * (height + gap),
-          width, height, hp, maxHp: hp
+          width, height, hp
         });
       }
     }
+    if (["maze", "portal"].includes(config.type)) result.push(...this.taoGachThep());
     return result;
+  }
+
+  taoGachThep() {
+    return [0, 50, 125, 175, 225, 275, 325, 400, 450].map(x => ({
+      x, y: 170, width: 50, height: 10, hp: Infinity
+    }));
+  }
+
+  taoCongKhongGian() {
+    if (this.layManHienTai().type !== "portal") return [];
+    return [
+      { id: "A", targetId: "B", x: 320, y: 300, radius: 18 },
+      { id: "B", targetId: "A", x: 250, y: 140, radius: 18 }
+    ];
   }
 
   datLaiBong() {
@@ -87,6 +99,7 @@ class BrickBreakerGame {
     this.ball.y = this.paddle.y - this.ball.radius - 1;
     this.ball.vx = 0;
     this.ball.vy = 0;
+    this.portalLocked = false;
   }
 
   thaBong() {
@@ -94,7 +107,6 @@ class BrickBreakerGame {
     this.ball.vx = speed * 0.35;
     this.ball.vy = -Math.sqrt(speed ** 2 - this.ball.vx ** 2);
     this.status = "playing";
-    this.accumulator = 0;
   }
 
   sangManTiepTheo() {
@@ -104,40 +116,21 @@ class BrickBreakerGame {
   }
 
   datHuong(direction) {
-    this.direction = Math.sign(direction); // -1: trái; 0: dừng; 1: phải
+    this.direction = Math.sign(direction);
   }
 
-  tamDung() {
-    if (this.status !== "playing") return;
-    this.status = "paused";
-    this.direction = 0;
-    this.accumulator = 0;
-  }
-
-  tiepTuc() {
-    this.status = "playing";
-  }
-
-  capNhat(deltaSeconds) {
+  capNhat(dt) {
     if (!["ready", "playing"].includes(this.status)) return;
-    this.accumulator += Math.min(deltaSeconds, 0.25);
-    while (this.accumulator + 1e-12 >= this.step) {
-      this.accumulator = Math.max(0, this.accumulator - this.step);
-      this.capNhatBuoc(this.step);
-      if (!["ready", "playing"].includes(this.status)) { this.accumulator = 0; break; }
-    }
-  }
-
-  capNhatBuoc(dt) {
     this.diChuyenThanhDo(dt);
     if (this.status === "ready") { this.datLaiBong(); return; }
     this.time += dt;
-    const previous = { x: this.ball.x, y: this.ball.y };
+    this.diChuyenGach();
     this.diChuyenBong(dt);
+    this.xuLyCongKhongGian();
     this.xuLyVaChamTuong();
     if (this.ball.y - this.ball.radius > this.height) { this.matMang(); return; }
-    this.xuLyVaChamThanhDo(previous);
-    this.xuLyVaChamGach(previous);
+    this.xuLyVaChamThanhDo();
+    this.xuLyVaChamGach();
     this.kiemTraHoanThanhMan();
   }
 
@@ -151,7 +144,45 @@ class BrickBreakerGame {
     this.ball.y += this.ball.vy * dt;
   }
 
-  // ===== Va chạm =====
+  xuLyCongKhongGian() {
+    const b = this.ball;
+    let portal = null;
+    for (let i = 0; i < this.portals.length; i++) {
+      const p = this.portals[i];
+      const dx = b.x - p.x;
+      const dy = b.y - p.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance <= p.radius + b.radius) {
+        portal = p;
+        break;
+      }
+    }
+    if (this.portalLocked) {
+      if (!portal) this.portalLocked = false;
+      return;
+    }
+    if (!portal) return;
+    for (let i = 0; i < this.portals.length; i++) {
+      const destination = this.portals[i];
+      if (destination.id === portal.targetId) {
+        b.x = destination.x;
+        b.y = destination.y;
+        this.portalLocked = true;
+        break;
+      }
+    }
+  }
+
+  diChuyenGach() {
+    const config = this.layManHienTai();
+    if (!["moving", "maze", "portal"].includes(config.type)) return;
+    const offset = config.moveAmplitude * Math.sin(2 * Math.PI * this.time / config.movePeriod);
+    for (const brick of this.bricks) {
+      if (brick.hp === Infinity) continue;
+      brick.x = brick.baseX + (brick.row % 2 === 0 ? offset : -offset);
+    }
+  }
+
   xuLyVaChamTuong() {
     const b = this.ball;
     if (b.x < b.radius) { b.x = b.radius; b.vx = Math.abs(b.vx); }
@@ -159,49 +190,55 @@ class BrickBreakerGame {
     if (b.y < b.radius) { b.y = b.radius; b.vy = Math.abs(b.vy); }
   }
 
-  // Vị trí chạm trên thanh đỡ quyết định góc bật (tối đa 60° so với phương thẳng đứng)
-  // chạm mép phải thì bật phải, mép trái thì bật sang trái, ở chính giữa thì thẳng đứng
-  xuLyVaChamThanhDo(previous) {
+  xuLyVaChamThanhDo() {
     const b = this.ball;
     const p = this.paddle;
-    if (b.vy <= 0 || previous.y + b.radius > p.y || !this.kiemTraVaChamTronChuNhat(b, p)) return;
-    b.y = p.y - b.radius - 0.1;
+    if (b.vy <= 0 || !this.kiemTraVaChamTronChuNhat(b, p)) return;
+    b.y = p.y - b.radius;
     const offset = this.gioiHan((b.x - (p.x + p.width / 2)) / (p.width / 2), -1, 1);
     const speed = this.layManHienTai().speed;
     b.vx = speed * Math.sin(offset * Math.PI / 3);
-    if (Math.abs(b.vx) < 20) b.vx = offset < 0 ? -20 : 20;
     b.vy = -Math.sqrt(speed ** 2 - b.vx ** 2);
   }
 
-  // Dựa vào vị trí cũ của bóng để chọn mặt bật, rồi đẩy bóng ra ngoài gạch
-  phanXaBong(rect, previous) {
+  phanXaBong(rect) {
     const b = this.ball;
-    if (previous.y + b.radius <= rect.y) {
-      b.y = rect.y - b.radius - 0.1; b.vy = -Math.abs(b.vy);
-    } else if (previous.y - b.radius >= rect.y + rect.height) {
-      b.y = rect.y + rect.height + b.radius + 0.1; b.vy = Math.abs(b.vy);
-    } else if (previous.x <= rect.x) {
-      b.x = rect.x - b.radius - 0.1; b.vx = -Math.abs(b.vx);
+    const overlapX = Math.min(b.x + b.radius - rect.x, rect.x + rect.width - b.x + b.radius);
+    const overlapY = Math.min(b.y + b.radius - rect.y, rect.y + rect.height - b.y + b.radius);
+    if (overlapX < overlapY) {
+      if (b.x < rect.x + rect.width / 2) {
+        b.x = rect.x - b.radius;
+        b.vx = -Math.abs(b.vx);
+      } else {
+        b.x = rect.x + rect.width + b.radius;
+        b.vx = Math.abs(b.vx);
+      }
     } else {
-      b.x = rect.x + rect.width + b.radius + 0.1; b.vx = Math.abs(b.vx);
+      if (b.y < rect.y + rect.height / 2) {
+        b.y = rect.y - b.radius;
+        b.vy = -Math.abs(b.vy);
+      } else {
+        b.y = rect.y + rect.height + b.radius;
+        b.vy = Math.abs(b.vy);
+      }
     }
   }
 
-  xuLyVaChamGach(previous) {
+  xuLyVaChamGach() {
     for (const brick of this.bricks) {
       if (brick.hp <= 0 || !this.kiemTraVaChamTronChuNhat(this.ball, brick)) continue;
-      this.phanXaBong(brick, previous);
+      this.phanXaBong(brick);
       this.danhTrungGach(brick);
-      break; // mỗi bước chỉ tính một gạch
+      break;
     }
   }
 
-  // Phá vỡ gạch: +10 điểm; đánh trúng nhưng gạch còn sống: +2 điểm
   danhTrungGach(brick) {
+    if (brick.hp === Infinity) return;
     brick.hp--;
     this.score += brick.hp === 0 ? 10 : 2;
   }
-  // tính mạng và kq
+
   matMang() {
     this.lives--;
     this.direction = 0;
@@ -213,7 +250,6 @@ class BrickBreakerGame {
     if (this.demGachConLai() === 0) this.hoanThanhMan();
   }
 
-  // Qua màn: thưởng 100 điểm và 1 mạng (tối đa 5), rồi chờ lệnh chuyển màn
   hoanThanhMan() {
     this.score += 100;
     this.lives = Math.min(5, this.lives + 1);
@@ -221,20 +257,6 @@ class BrickBreakerGame {
     this.status = "levelClear";
   }
 
-  layTrangThai() {
-    return {
-      status: this.status, 
-      level: this.level, 
-      levelName: this.layManHienTai().name,
-      levelType: this.layManHienTai().type,
-      score: this.score, lives: this.lives, time: this.time,
-      width: this.width, height: this.height,
-      remainingBricks: this.demGachConLai(),
-      hasNextLevel: this.coManTiepTheo(),
-      paddle: { ...this.paddle }, ball: { ...this.ball },
-      bricks: this.bricks.map(brick => ({ ...brick }))
-    };
-  }
 }
 
 const game = new BrickBreakerGame();
@@ -245,6 +267,7 @@ const messageEl = document.querySelector(".message");
 const ballEl = document.querySelector(".ball");
 const paddleEl = document.querySelector(".paddle");
 const brickContainerEl = document.querySelector(".brick-container");
+const portalContainerEl = document.querySelector(".portal-container");
 const levelSelectorEl = document.querySelector(".level-selector");
 let brickEls = [];
 let manDangHienThi = 0;
@@ -257,8 +280,11 @@ function dongBoHuong() {
 }
 
 function taoNutChonMan() {
-  nutChonManEls = game.levels.map((level, index) => {
-    const levelNumber = index + 1;
+  levelSelectorEl.innerHTML = "";
+  nutChonManEls = [];
+  for (let i = 0; i < game.levels.length; i++) {
+    const level = game.levels[i];
+    const levelNumber = i + 1;
     const button = document.createElement("button");
     button.type = "button";
     button.className = "level-button";
@@ -267,37 +293,50 @@ function taoNutChonMan() {
     button.addEventListener("click", () => {
       keys.left = keys.right = false;
       game.chonMan(levelNumber);
-      lastTime = null;
       hienThi();
       button.blur();
     });
-    return button;
-  });
-  levelSelectorEl.replaceChildren(...nutChonManEls);
+    nutChonManEls.push(button);
+    levelSelectorEl.appendChild(button);
+  }
 }
 
 function taoGiaoDienGach(bricks) {
-  brickContainerEl.replaceChildren();
-  brickEls = bricks.map(brick => {
+  brickContainerEl.innerHTML = "";
+  brickEls = [];
+  for (let i = 0; i < bricks.length; i++) {
+    const brick = bricks[i];
     const element = document.createElement("div");
     element.className = "brick";
     element.style.left = brick.x + "px";
     element.style.top = brick.y + "px";
     element.style.width = brick.width + "px";
     element.style.height = brick.height + "px";
+    brickEls.push(element);
     brickContainerEl.appendChild(element);
-    return element;
-  });
+  }
 }
 
-function layThongBao(state) {
-  switch (state.status) {
+function taoGiaoDienCong(portals) {
+  portalContainerEl.innerHTML = "";
+  for (let i = 0; i < portals.length; i++) {
+    const portal = portals[i];
+    const element = document.createElement("div");
+    element.className = "portal";
+    element.dataset.portal = portal.id;
+    element.style.left = (portal.x - portal.radius) + "px";
+    element.style.top = (portal.y - portal.radius) + "px";
+    element.style.width = element.style.height = (portal.radius * 2) + "px";
+    portalContainerEl.appendChild(element);
+  }
+}
+
+function layThongBao() {
+  switch (game.status) {
     case "ready":
-      return `Màn ${state.level}: ${state.levelName}<br>${state.levelType === "armored" ? "<small>Gạch có 1–3 HP, mỗi lần trúng bóng giảm 1 HP</small><br>" : ""}<small>Nhấn Space để thả bóng</small>`;
-    case "paused":
-      return "Tạm dừng<br><small>Nhấn P để tiếp tục</small>";
+      return `Màn ${game.level}: ${game.layManHienTai().name}<br><small>Nhấn Space để thả bóng</small>`;
     case "levelClear":
-      return `Hoàn thành màn ${state.level}! +100 điểm<br><small>Nhấn ${state.hasNextLevel ? "Space để sang màn tiếp theo" : "R để chơi lại"}</small>`;
+      return `Hoàn thành màn ${game.level}! +100 điểm<br><small>Nhấn ${game.coManTiepTheo() ? "Space để sang màn tiếp theo" : "R để chơi lại"}</small>`;
     case "gameover":
       return "Game Over<br><small>Nhấn R để chơi lại</small>";
     default:
@@ -306,28 +345,32 @@ function layThongBao(state) {
 }
 
 function hienThi() {
-  const s = game.layTrangThai();
-  if (manDangHienThi !== s.level) {
-    taoGiaoDienGach(s.bricks);
-    manDangHienThi = s.level;
+  if (manDangHienThi !== game.level) {
+    taoGiaoDienGach(game.bricks);
+    taoGiaoDienCong(game.portals);
+    manDangHienThi = game.level;
   }
-  scoreEl.textContent = s.score;
-  livesEl.textContent = "♥ " + s.lives;
+  scoreEl.textContent = game.score;
+  livesEl.textContent = "♥ " + game.lives;
   nutChonManEls.forEach(button => {
-    button.setAttribute("aria-pressed", String(Number(button.dataset.level) === s.level));
+    button.classList.toggle("active", Number(button.dataset.level) === game.level);
   });
 
-  paddleEl.style.left = s.paddle.x + "px";
-  ballEl.style.left = (s.ball.x - s.ball.radius) + "px";
-  ballEl.style.top = (s.ball.y - s.ball.radius) + "px";
+  paddleEl.style.left = game.paddle.x + "px";
+  paddleEl.style.width = game.paddle.width + "px";
+  ballEl.style.left = (game.ball.x - game.ball.radius) + "px";
+  ballEl.style.top = (game.ball.y - game.ball.radius) + "px";
 
-  s.bricks.forEach((brick, i) => {
+  game.bricks.forEach((brick, i) => {
     const element = brickEls[i];
+    element.style.left = brick.x + "px";
+    element.style.top = brick.y + "px";
     element.style.visibility = brick.hp > 0 ? "visible" : "hidden";
     element.dataset.hp = brick.hp;
+    element.dataset.steel = String(brick.hp === Infinity);
   });
 
-  const message = layThongBao(s);
+  const message = layThongBao();
   messageEl.innerHTML = message;
   messageEl.style.display = message ? "block" : "none";
 }
@@ -348,10 +391,6 @@ document.addEventListener("keydown", (e) => {
       keys.right = true; dongBoHuong(); e.preventDefault(); break;
     case " ":
       xuLyHanhDongChinh(); e.preventDefault(); break;
-    case "p": case "P": case "Escape":
-      if (game.status === "playing") game.tamDung();
-      else if (game.status === "paused") { game.tiepTuc(); dongBoHuong(); }
-      break;
     case "r": case "R":
       game.choiLai(); dongBoHuong(); break;
   }
@@ -363,16 +402,10 @@ document.addEventListener("keyup", (e) => {
   dongBoHuong();
 });
 
-// Mất focus cửa sổ thì tự tạm dừng.
-window.addEventListener("blur", () => {
-  keys.left = keys.right = false;
-  dongBoHuong();
-  game.tamDung();
-});
-
-let lastTime = null;
+let lastTime = performance.now();
 function khungHinh(now) {
-  if (lastTime !== null) game.capNhat((now - lastTime) / 1000);
+  const dt = Math.min((now - lastTime) / 1000, 1 / 30);
+  game.capNhat(dt);
   lastTime = now;
   hienThi();
   requestAnimationFrame(khungHinh);
